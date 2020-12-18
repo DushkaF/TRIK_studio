@@ -4,9 +4,9 @@
         {
             "label": "Run TRIK 2D model",
             "type": "shell",
-            "command": "C:\\TrikStudio\\run_2d_model.cmd C:\\FieldsTRIK\\SLAMtask test_0.js",
+            "command": "C:\\TrikStudio\\run_2d_model.cmd C:\\FieldsTRIK\\day3-master-sim_tests\\sim_tests default.js",
             "windows": {
-                "command": "C:\\TrikStudio\\run_2d_model.cmd C:\\FieldsTRIK\\SLAMtask test_0.js"
+                "command": "C:\\TrikStudio\\run_2d_model.cmd C:\\FieldsTRIK\\day3-master-sim_tests\\sim_tests default.js"
             },
             "group": {
                "kind": "build",
@@ -17,7 +17,7 @@
                 "panel": "new"
             },
             "options": {
-                "cwd": "C:\\Подготовка к НТИ ИРС\\temp"
+                "cwd": "C:\\Подготовка к НТИ ИРС\\artag 8x8"
             }
         }
         
