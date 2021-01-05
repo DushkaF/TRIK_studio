@@ -9,6 +9,7 @@ var lSens = brick.sensor(A3);
 var rSens = brick.sensor(A2);
 var fSens = brick.sensor(A1);
 //var bSens = brick.sensor(A3);
+var ceilWidth = 70;
     
 var rEnc = brick.encoder(E3);
 var lEnc = brick.encoder(E4);
@@ -191,12 +192,12 @@ function researchFirstCell(){
     turnToRequiredAngle(0);
 }
 
-function researchCell(){    
+function researchCell(){
     map[x][y] = "X";
-    drawAround(lSens.read() <= 70, 3);
-    drawAround(rSens.read() <= 70, 1);
-    drawAround(fSens.read() <= 70, 0);
-    //drawAround(bSens.read() <= 70, 2);
+    drawAround(lSens.read() <= ceilWidth, 3);
+    drawAround(rSens.read() <= ceilWidth, 1);
+    drawAround(fSens.read() <= ceilWidth, 0);
+    //drawAround(bSens.read() <= ceilWidth, 2);
     drawAround(undefined, 2);   // для заполения крестиками промежутков стенок
     //printMap(map);
 }

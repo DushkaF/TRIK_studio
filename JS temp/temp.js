@@ -1,31 +1,21 @@
-var __interpretation_started_timestamp__;
-var pi = 3.141592653589793;
+var fs = require('fs');
 
 
-var main = function() {
-    __interpretation_started_timestamp__ = Date.now();
+readInput();
 
-
-   // var finishAbsolut = readInput();
-   script.writeToFile("output.txt", "Hello, world"); // записать «Hello, world» в файл output.t
-   
-    print("finish");
-    brick.display().addLabel("finish", 0, 0);
-    brick.display().redraw();
-    return;
-}
 
 
 // -------- ArTag -------- //
 
 function rawToBoolean(raw, length, width) {
+    var gradient = 110;
     var blackWhiteArTag = [];
     for (var i = 0; i < width; i++) {
         blackWhiteArTag[i] = [];
         for (var j = 0; j < length; j++) {
             var pixel = raw[i * length + j];
-            var monoColor = function(pixel) {
-                if (Math.floor((parseInt(pixel.substring(0, 2), 16) + parseInt(pixel.substring(2, 4), 16) + parseInt(pixel.substring(4, 6), 16)) / 3) > 128) //Высчитываем "тон", среднее по всем каналам
+            var monoColor = function (pixel) {
+                if (Math.floor((parseInt(pixel.substring(0, 2), 16) + parseInt(pixel.substring(2, 4), 16) + parseInt(pixel.substring(4, 6), 16)) / 3) > gradient) //Высчитываем "тон", среднее по всем каналам
                     return 0;
                 else
                     return 1;
@@ -34,6 +24,36 @@ function rawToBoolean(raw, length, width) {
         }
     }
     return blackWhiteArTag;
+}
+
+function findIsle(monoChromeTag) {
+    var partionTag = monoChromeTag;
+    var tag = 1;
+    var count = 2;
+    for (var i = 0; i < partionTag.length; i++) {
+        for (var j = 0; j < partionTag[i].length; j++) {
+            if (partionTag[i][j] == tag) {
+                print("found tag");
+                partionTag = reseachIsle(partionTag, count, [i, j], tag);
+                count++;
+            }
+        }
+    }
+    print("founded");
+    printTagToFile(partionTag);
+}
+
+function reseachIsle(monoChromeTag, value, coords, tag) {
+    var partion = monoChromeTag;
+    for (var i = 0; i < 4; i++) {
+        tx = (1 - i) % 2;
+        ty = (2 - i) % 2;
+        if (coords[0] + tx < partion.length && coords[0] + tx >= 0 && coords[1] + ty < partion[0].length && coords[1] + ty >= 0 && partion[coords[0] + tx][coords[1] + ty] == tag) {
+            partion[coords[0] + tx][coords[1] + ty] = value;
+            partion = reseachIsle(partion, value, [coords[0] + tx, coords[1] + ty], tag);
+        }
+    }
+    return partion;
 }
 
 function getDistance(start, end) {
@@ -125,27 +145,14 @@ function orientationArTag(matrix, pointVal, value) {
     return matrix;
 }
 
-function getValueArTag(matrix) {
-    var strBin = String(matrix[1][2]).concat(matrix[2][1], matrix[2][3], matrix[3][2]);
-    //print(strBin);
-    return parseInt(strBin, 2);
-}
-
-function getCordination(rawCord) {
-    var readyCord = [0, 0];
-    for (var i = 0; i < rawCord.length; i++) {
-        if (rawCord[i] < 8) {
-            readyCord[0] = rawCord[i];
-        } else {
-            readyCord[1] = rawCord[i] - 8;
-        }
-    }
-    return readyCord;
-}
 
 function ArTag(rawImage, length, width, size) {
     var monoChrome = rawToBoolean(rawImage, length, width);
-    var borders = [ //1 - левый верхний, 2 - правый верхний, 3 - нихний левый, 4 - нижний правый
+    //printTagToFile(monoChrome);
+    findIsle(monoChrome);
+    
+    
+    /*var borders = [ //1 - левый верхний, 2 - правый верхний, 3 - нихний левый, 4 - нижний правый
         findCorner(monoChrome, [0, 0], 1),
         findCorner(monoChrome, [0, monoChrome[0].length], 1),
         findCorner(monoChrome, [monoChrome.length, 0], 1),
@@ -153,22 +160,51 @@ function ArTag(rawImage, length, width, size) {
     ];
 
     var rawArTag = readPixelFromArTag(monoChrome, size, borders, 2);
-    for(var  i= 0; i < rawArTag.length; i++){
+    for (var i = 0; i < rawArTag.length; i++) {
         print(rawArTag[i]);
-    }
-   // var orientedArTag = orientationArTag(rawArTag, [3, 3], 0);
-   // return getValueArTag(orientedArTag);
+    }*/
+    // var orientedArTag = orientationArTag(rawArTag, [3, 3], 0);
+    // return getValueArTag(orientedArTag);
 }
 
 
 function readInput() {
-    var lines = script.readAll("task1_00.txt");
+    var lines = readFile("task1_00.txt");
     var FirstValueArTag = ArTag(lines[0].split(" "), 160, 120, 8);
-    
-    
+
+
     /*for (var i = 0; i < monoChrome.length; i++) {
         print(i, "", monoChrome[i]);
     }*/
     //print(finishCord);
     //return finishCord;
+}
+
+
+// ------------ System functions ------------ //
+
+function readFile(path) {
+    var data = fs.readFileSync(path, 'utf-8').split("\n");
+    return data;
+}
+
+function print(data) {
+    console.log(data);
+}
+
+function printTagToFile(content) {
+    var out = "";
+    for (var i = 0; i < content.length; i++) {
+        for (var j = 0; j < content[i].length; j++) {
+            out += content[i][j];
+        }
+        out += "\n";
+    }
+    print("write");
+    fs.writeFile('task1_00_visual.txt', out, (err) => {
+        if (err) {
+            console.error(err)
+            return
+        }
+    })
 }

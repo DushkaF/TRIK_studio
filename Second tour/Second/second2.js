@@ -3,12 +3,14 @@ var pi = 3.141592653589793;
 
 var rMotor = brick.motor(M3);
 var lMotor = brick.motor(M4);
+var lastUsedStop = true;
 
-
-var lSens = brick.sensor(A3);
+var lSens = brick.sensor(A1);
 var rSens = brick.sensor(A2);
-var fSens = brick.sensor(A1);
-//var bSens = brick.sensor(A3);
+var fSens = brick.sensor(D1);
+var bSens = brick.sensor(D2);
+var ultrasonicSens = 150;
+var infaredSens = 80;
     
 var rEnc = brick.encoder(E3);
 var lEnc = brick.encoder(E4);
@@ -23,8 +25,14 @@ var nesserationAngle = [180, 270, 360, 90];
 var nowAngle = 0;
 var lastAngle = 0;
 
-var distanceToNextCell = 1430;
+//var distanceToNextCeil = 1430/2;
+var distanceToNextCeil = 715; 
+var ceilWidth = 35;
+var sensErr = 5;
+var diametr = 5.6;
+//var distanceToNextCeil = 374*(ceilWidth/(pi*diametr));
 
+var mapSize = (16 + 1)*2;
 var map;
 var x;
 var y;
@@ -35,28 +43,25 @@ var absolutY = -1;
 
 var main = function() {
     __interpretation_started_timestamp__ = Date.now();
-
+    
+    //script.wait(5000);
     calibrateGyro();
     setStartPoint();
 
-    var finishAbsolut = readInput();
-    map = makeEmptyMap(37, 37);
+    print(distanceToNextCeil);
+    //setStart();
     
-    /*for(var i = 3; i >= 0; i--)
-        turnToRequiredAngle(i);
-    */
-   
-    researchFirstCell();
+    map = makeEmptyMap(mapSize, mapSize);
+    //turnToRequiredAngle(1);
+    //going(2);
+    //printMap(map);
     
-    while(true){
-        researchCell();
+    researchCeil();
+    
+    /*while(true){
+        researchCeil();
         if(!whereNext()) break;
-    }
-    
-    definitionAbsolutCoords();
-    //print(absolutX, " ", absolutY);
-    var finish = convertAbsolutCoordsToOurSystem([x, y], [absolutX, absolutY], finishAbsolut, 0);
-    moveToRequiredCeil(finish);
+    }*/
     
     print("finish");
     brick.display().addLabel("finish", 0, 0);
@@ -66,13 +71,15 @@ var main = function() {
 }
 
 
+
 //-------------------- Исследование лабиринта --------------------------//
 
 function printMap(arr){
     for(var i = arr.length - 1; i >= 0; i--){
         var temp = "".concat(i + (i > 9 ? "*" : "* "));
         for(var j = 0; j < arr[i].length; j++){
-            temp = temp.concat(arr[i][j] + ((arr[i][j] + "").length > 1 ? " " : "  "));
+            //temp = temp.concat(arr[i][j] + ((arr[i][j] + "").length > 1 ? " " : "  "));
+            temp = temp.concat(arr[i][j]);
         }
         print(temp);
     }
@@ -102,11 +109,12 @@ function makeEmptyMap(height, width){
     return map;
 }
 
-function drawAround(wall, position){
+/*function drawAround(value, position, maximum){
     var flag= false;
-    if(wall == undefined){
+    if(value == undefined){
         flag = true;
     }
+    var count =  Math.floor(value / (ceilWidth + sensErr));
     position = (nowAngle + position) % 4;
     var tx = 0;
     var ty = 0;
@@ -125,81 +133,80 @@ function drawAround(wall, position){
             break;
     }
     if(!flag){
-        if(!wall){
-            map[x+2*tx][y+2*ty] = map[x+2*tx][y+2*ty] != "X" ? " " : "X";
+        if(count < Math.floor(maximum / (ceilWidth + sensErr))){
+            map[x+tx*(2*count + 1)][y+ty*(2*count + 1)] = (tx != 0 ? "-" : "|");
+            
+            //-- для дорисовывания предполагаемых стенок --//
+        
+            map[x+tx*(2*count + 1 + 6)][y+ty*(2*count + 1 + 6)] = (tx != 0 ? "-" : "|");
+        } else {
+            count = Math.floor(maximum / (ceilWidth + sensErr));
         }
-        map[x+tx][y+ty] = wall ? (tx != 0 ? "-" : "|") : map[x+2*tx][y+2*ty] != "X" ? " " : "X";
-    } else{
+        
+        for(var i = count; i >= 1; i--){
+            map[x+tx*2*i][y+ty*2*i] = map[x+tx*2*i][y+ty*2*i] != "X" /*&& map[x+tx*(2*i + 1)][y+ty*(2*i + 1)] == "X"*//* ? " " : "X";
+            map[x+tx*(2*i-1)][y+ty*(2*i-1)] = map[x+tx*(2*i)][y+ty*(2*i)] != "X" ? " " : "X";
+        }
+    } else {
         if( map[x+2*tx][y+2*ty] == "X"){
             map[x+tx][y+ty] = "X";
         }
     }
-    
-}
+}*/
 
-function definitionAbsolutCoords(){     //----------- ПЕРЕДЕЛАТЬ ДЛЯ ДРУГОГО НАПРАВЛЕНИЯ. НЕ УНИВЕРСАЛЬНА! ----------------//
-    if(absolutX < 0){
-        var matrixX = [];
-        var count = 0;
-        for(var i = 0; i < map.length; i++){
-            var visit = 0;
-            for(var j = 0; j < map[i].length; j++){
-                if (map[i][j] === "X"){
-                    visit = 1;
-                }
-            }
-            count += visit;
-            matrixX[i] = visit;
-        }
-        if(count == (8*2-1)){
-            for(var i = 1; i <= x; i+=2){
-                if(matrixX[i] == 1){
-                    absolutX++;
-                }
-            }
-            //print("X: ", absolutX);
-        }
+function drawAroundForThis(value, position, maximum){
+    var flag= false;
+    if(value == undefined){
+        flag = true;
     }
-    if(absolutY < 0){
-        var matrixY = [];
-        for(var i = 0; i < map[0].length; i++){
-            matrixY[i] = 0;
+    var count =  Math.floor(value / (ceilWidth + sensErr));
+    position = (nowAngle + position) % 4;
+    var tx = 0;
+    var ty = 0;
+    switch(position){
+        case 0:
+            tx = 1;
+            break;
+        case 1:
+            ty = 1;
+            break;
+        case 2:
+            tx = -1;
+            break;
+        case 3:
+            ty = -1;
+            break;
+    }
+    if(!flag){
+        if(count < Math.floor(maximum / (ceilWidth + sensErr))){
+            map[x+tx*(count + 1)][y+ty*(count + 1)] = (tx != 0 ? "-" : "|");
+            
+            //-- для дорисовывания предполагаемых стенок --//
+        
+            //map[x+tx*(2*count + 1 + 6)][y+ty*(2*count + 1 + 6)] = (tx != 0 ? "-" : "|");
+        } else {
+            count = Math.floor(maximum / (ceilWidth + sensErr));
         }
-        var count = 0;
-        for(var i = 0; i < map.length; i++){
-            for(var j = 0; j < map[i].length; j++){
-                if (map[i][j] === "X" && matrixY[j] == 0){
-                    matrixY[j] = 1;
-                    count++;
-                }
-            }
+        
+        for(var i = count; i >= 1; i--){
+            map[x+tx*i][y+ty*i] = map[x+tx*i][y+ty*i] != "X" ? " " : "X";
+            map[x+tx*(i-1)][y+ty*(i-1)] = map[x+tx*(i)][y+ty*(i)] != "X" ? " " : "X";
         }
-        if(count == (8*2-1)){
-            for(var i = 1; i <= y; i+=2){
-                if(matrixY[i] == 1){
-                    absolutY++;
-                }
-            }
-            //print("Y: ", absolutY);
-        }
+    } else {
     }
 }
 
-function researchFirstCell(){
-    turnToRequiredAngle(1);
-    researchCell();
-    turnToRequiredAngle(0);
-}
-
-function researchCell(){    
+function researchCeil(){    
     map[x][y] = "X";
-    drawAround(lSens.read() <= 70, 3);
-    drawAround(rSens.read() <= 70, 1);
-    drawAround(fSens.read() <= 70, 0);
-    //drawAround(bSens.read() <= 70, 2);
-    drawAround(undefined, 2);   // для заполения крестиками промежутков стенок
-    //printMap(map);
+    drawAroundForThis(lSens.read(), 3, infaredSens);
+    drawAroundForThis(rSens.read(), 1, infaredSens);
+    drawAroundForThis(fSens.read(), 0, ultrasonicSens);
+    drawAroundForThis(bSens.read(), 2, ultrasonicSens);
+    //print(fSens.read());
+    //drawAround(undefined, 2);   // для заполения крестиками промежутков стенок при отсутствии заднего датчика
+    printMap(map);
 }
+
 
 function whereNext(){
     var tx;
@@ -222,9 +229,9 @@ function whereNext(){
         if(nowAngle != angle){
             turnToRequiredAngle(angle);
         }
-        toNextCell();
-        x += 2*((1 - nowAngle) % 2);
-        y += 2*((2 - nowAngle) % 2);
+        going();
+        /*x += 2*((1 - nowAngle) % 2);
+        y += 2*((2 - nowAngle) % 2);*/
         //print("Coords ", x, " ", y)
     } else{
         if(!moveToRequiredCeil()){
@@ -233,12 +240,6 @@ function whereNext(){
     }
     return true;
     
-}
-
-function convertAbsolutCoordsToOurSystem(nowCoords, nowAbsolutCoords, needAbsolutCoords, direction){
-    var tx = ((1 - direction) % 2)*(needAbsolutCoords[0] - nowAbsolutCoords[0]) + ((2 - direction) % 2)*(needAbsolutCoords[1] - nowAbsolutCoords[1]);
-    var ty = ((1 - direction) % 2)*(needAbsolutCoords[1] - nowAbsolutCoords[1]) + ((2 - direction) % 2)*(needAbsolutCoords[0] - nowAbsolutCoords[0]);
-    return [nowCoords[0]+tx*2, nowCoords[1]+ty*2]; 
 }
 
 function moveToRequiredCeil(coords){
@@ -290,7 +291,7 @@ function findRequiredCeil(tag){
                             lastCounter = counter; 
                         }
                         if(tag == undefined){
-                            if(String(map[row + 2*tx][col + 2*ty]) == ' ' && mask[row + tx][col + ty] === " "){
+                            if(/*(row + 2*tx) % 4 == 0 && (col + 2*ty) % 4 == 0 &&*/ String(map[row + 2*tx][col + 2*ty]) == ' ' && mask[row + tx][col + ty] === " "){
                                 /*print("Near ", map[row + 2*tx][col + 2*ty]);
                                 print("****** it near ", row + 2*tx, " ", col + 2*ty);*/
                                 near_flag = true;
@@ -361,7 +362,7 @@ function goToNearCeil(xi, yi){
     if(nowAngle != angle){
         turnToRequiredAngle(angle);
     }
-    toNextCell();
+    toNextCeil();
     x += 2*((1 - nowAngle) % 2);
     y += 2*((2 - nowAngle) % 2);
     
@@ -372,6 +373,8 @@ function goToNearCeil(xi, yi){
         absolutY +=((2 - nowAngle) % 2);
     }
 }
+
+
 
 // -------------- Mooving ------------ //
 
@@ -403,8 +406,75 @@ function checkAnglePosition(dir){
     return result;
 }
 
+//------ New my ideas about motion -----//
+
+
+function checkWall(){
+    return fSens.read() > ceilWidth;
+}
+
+function researchCeilPosition(){
+    x += 2*((1 - nowAngle) % 2);
+    y += 2*((2 - nowAngle) % 2);
+    researchCeil();
+}
+
+function going(){
+    //researchCeilPosition();
+    var lastCountResearchedCeil = 0;
+    setMotion(100, 100);
+    while(checkWall()){
+        var nowCountResearchedCeil = Math.floor((rEnc.readRawData() - encoderAbsolut) / distanceToNextCeil);
+        //print("nowCountResearchedCeil ", nowCountResearchedCeil, " ", (rEnc.readRawData() - encoderAbsolut));
+        if(lastCountResearchedCeil < nowCountResearchedCeil){
+            //print(nowCountResearchedCeil, " last ", lastCountResearchedCeil);
+            researchCeilPosition();
+            lastCountResearchedCeil = nowCountResearchedCeil;
+            //printMap(map);
+            //print(map[x +  2*((1 - nowAngle) % 2)][y + 2*((2 - nowAngle) % 2)]);
+            if(map[x +  2*((1 - nowAngle) % 2)][y + 2*((2 - nowAngle) % 2)] != " ") break;
+        }
+    }
+    //stop();
+    //researchCeil();
+    //printMap(map);
+    //print(encoderAbsolut);
+    
+    var needEncoder = encoderAbsolut;
+    print("last enc ", needEncoder, "encAbs " , encoderAbsolut);
+    if(Math.abs(lastCountResearchedCeil*distanceToNextCeil - (rEnc.readRawData() - encoderAbsolut)) > Math.abs((lastCountResearchedCeil + 1)*distanceToNextCeil - (rEnc.readRawData() - encoderAbsolut))){
+        needEncoder += (lastCountResearchedCeil + 1)*distanceToNextCeil;
+        researchCeilPosition();
+    } else {
+        needEncoder += (lastCountResearchedCeil)*distanceToNextCeil;
+    }
+    encoderAbsolut = rEnc.readRawData();
+    
+    print("x ", (x - Math.ceil(mapSize / 2)), " y ", (y - Math.ceil(mapSize / 2)));
+    print("count ", lastCountResearchedCeil, " ", encoderAbsolut - needEncoder);
+    print("before ", encoderAbsolut, " ",  needEncoder);
+    setMoving(needEncoder - encoderAbsolut);
+    print("after ", encoderAbsolut, " ",  rEnc.readRawData());
+    
+    /*if(!((x - Math.ceil(mapSize / 2)) % 4 == 0 && (y - Math.ceil(mapSize / 2)) % 4 == 0)){
+        script.wait(1000);
+        print("rev");
+        //print("before ", encoderAbsolut, " ",  rEnc.readRawData());
+        //encoderAbsolut -= distanceToNextCeil;
+        x -= 2*((1 - nowAngle) % 2);
+        y -= 2*((2 - nowAngle) % 2);
+        //print("recalculate ", encoderAbsolut);
+        setMoving(-distanceToNextCeil);
+        //print("after ", encoderAbsolut);
+        script.wait(1000);
+    }*/
+}
+
+//---------------------------------------//
+
 
 function turnTo(count) {
+    print("turning");
     if(count == undefined) count = 1;
     var indent = 175;
     setMoving(indent);
@@ -420,7 +490,7 @@ function turnTo(count) {
         setMotion(-100, 100);
     }
     //print("next angle ", nowAngle);
-    script.wait(100);
+    script.wait(100);       // костыль для перескока пограничных ситуаций
     lastAngle = gyro();
 
     while (checkAnglePosition(count > 0)) {
@@ -431,7 +501,7 @@ function turnTo(count) {
             resultSpeed = setSpeedGyro * gyroP * ((nesserationAngle[nowAngle]%360) * 1000 - gyro()) - 1;
         }
         setMotion(resultSpeed, -resultSpeed);
-        script.wait(0.5);
+        script.wait(0.3);
     }
     
     //print(gyro(), " ", nesserationAngle[nowAngle]*1000);
@@ -461,8 +531,10 @@ function turnToRequiredAngle(needAngle){
 }
 
 function stop(){
-    lMotor.brake(100);
-    rMotor.brake(100);
+    /*lMotor.brake(100);
+    rMotor.brake(100);*/
+    lMotor.setPower(0);
+    rMotor.setPower(0);
 }
 
 function encReset(){
@@ -497,8 +569,7 @@ function setMoving(distance, setSpeed){
     stop();
 }
 
-function toNextCell(count){
+function toNextCeil(count){
     if (typeof(count)==='undefined') count = 1;
-    setMoving(distanceToNextCell*count);
-    //additionalMoving(distanceToNextCell*count);
+    setMoving(distanceToNextCeil*count);
 }
