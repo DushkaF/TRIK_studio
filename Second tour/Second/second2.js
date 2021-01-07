@@ -15,7 +15,7 @@ var infaredSens = 80;
 var rEnc = brick.encoder(E3);
 var lEnc = brick.encoder(E4);
 
-var gyroP = 0.0005; //0.00005
+var gyroP = 0.0003; //0.00005
 var setSpeedGyro = 10;
 
 var moveP = 0.05; // 0.005
@@ -37,9 +37,12 @@ var map;
 var x;
 var y;
 var mask;
+var background = "■";
 
 var absolutX = -1;
 var absolutY = -1;
+
+var READY = 0;
 
 var main = function() {
     __interpretation_started_timestamp__ = Date.now();
@@ -48,7 +51,6 @@ var main = function() {
     calibrateGyro();
     setStartPoint();
 
-    print(distanceToNextCeil);
     //setStart();
     
     map = makeEmptyMap(mapSize, mapSize);
@@ -56,18 +58,119 @@ var main = function() {
     //going(2);
     //printMap(map);
     
-    researchCeil();
+    //researchCeil();
     
-    /*while(true){
+    
+    while(true){
         researchCeil();
         if(!whereNext()) break;
-    }*/
+        mapAnalysis();
+        if (READY != 0) break;
+    }
     
     print("finish");
-    brick.display().addLabel("finish", 0, 0);
+    brick.display().addLabel(READY, 0, 0);
     brick.display().redraw();
     //brick.print("FINISH");
     return;
+}
+
+
+// ------------ Map analis ------------- //
+function mapAnalysis(){
+    var matrixX = [];
+    var countX = 0;
+    for(var i = 0; i < map.length; i++){
+        var visit = 0;
+        var visitAll = 0; 
+        var wall = -2;
+        for(var j = 0; j < map[i].length; j++){
+            if (map[i][j] === "X"){
+                visit = 1;
+                visitAll++;
+            } else if (map[i][j] === "|" || map[i][j] === "-"){
+                wall++;
+            }
+        }
+        countX += visit;
+        if (visitAll == 15){
+            matrixX[i] = "X";
+        } else if (wall > 0){
+            matrixX[i] = "|";
+        } else{
+            matrixX[i] = background;
+        }
+    }
+    
+    //if(countX != 15) return;
+    
+    var matrixY = [];
+    for(var i = 0; i < map[0].length; i++){
+        matrixY[i] = background;
+    }
+    var countY = 0;
+    for(var i = 0; i < map[0].length; i++){
+        var visit = 0;
+        var visitAll = 0; 
+        var wall = -2;
+        for(var j = 0; j < map.length; j++){
+            if (map[j][i] === "X"){
+                visit = 1;
+                visitAll++;
+            } else if (map[j][i] === "|" || map[j][i] === "-"){
+                wall++;
+            }
+        }
+        countY += visit;
+        if (visitAll == 15){
+            matrixY[i] = "X";
+        } else if (wall > 0){
+            matrixY[i] = "|";
+        } else{
+            matrixY[i] = background;
+        }
+        
+    }
+    
+    print("X projection ", matrixX, " ", countX);
+    print("Y projection ", matrixY, " ", countY);
+    if(countX == 15 && countY == 15){
+        var res = projectionAnalysis(matrixY, projectionAnalysis(matrixX));
+        if(res != -1){
+            print("RESULT: ", res*ceilWidth);
+            READY = res*ceilWidth;
+            //script.wait(5000);
+        }
+    }
+}
+
+function projectionAnalysis(arr, lastValue){
+    var researched = [];
+    for(var i = 1; i < arr.length; i++){
+        if (arr[i-1] == '|'){
+            for(var j = 0; j < 15; j++){
+                researched[j] = arr[i+j];
+            }
+            break;
+        }
+    }
+    var distantionForWall = [researched.lastIndexOf("|") != -1 ? researched.indexOf("|") + 1 : -1, researched.lastIndexOf("|") != -1 ? 15 - researched.lastIndexOf("|") : -1];
+    var distantionForUnsearched = [researched.lastIndexOf(background) != -1 ? researched.indexOf(background) + 1 : -1, researched.lastIndexOf(background) != -1 ? 15 - researched.lastIndexOf(background) : -1];
+    //print(distantionForWall, " ", distantionForUnsearched);
+    
+    var nowValue = [researched.lastIndexOf("|") == researched.indexOf("|") ? -1 : Math.min.apply(null, distantionForWall), Math.min.apply(null, distantionForUnsearched) == -1 ? 16 : Math.min.apply(null, distantionForUnsearched)];
+    print(nowValue);
+    if (lastValue == undefined){
+        return nowValue;
+    } else {
+        if (!(nowValue[0] == -1 && lastValue[0] == -1) && ((nowValue[1] >= nowValue[0] && lastValue[1] >= nowValue[0] || 
+                                                                (nowValue[1] >= lastValue[0]) && lastValue[1] >= lastValue[0]))){
+            return Math.min(lastValue[0], nowValue[0]);
+        } else {
+            return -1;
+        }
+    }
+    
 }
 
 
@@ -90,7 +193,7 @@ function makeEmptyMap(height, width){
     for(var i = 0; i < height; i ++){
         map[i] = [];
         for(var j = 0; j < height; j++){
-             map[i][j] = "■";
+             map[i][j] = background;
         }
     }
     
@@ -189,8 +292,8 @@ function drawAroundForThis(value, position, maximum){
         }
         
         for(var i = count; i >= 1; i--){
-            map[x+tx*i][y+ty*i] = map[x+tx*i][y+ty*i] != "X" ? " " : "X";
-            map[x+tx*(i-1)][y+ty*(i-1)] = map[x+tx*(i)][y+ty*(i)] != "X" ? " " : "X";
+            map[x+tx*i][y+ty*i] = map[x+tx*i][y+ty*i] != "X" ? (map[x+tx*i][y+ty*i] == background ? " " : map[x+tx*i][y+ty*i]) : "X";
+            //map[x+tx*(i-1)][y+ty*(i-1)] = map[x+tx*(i)][y+ty*(i)] != "X" ? " " : "X";
         }
     } else {
     }
@@ -217,7 +320,7 @@ function whereNext(){
         var ti = (nowAngle + i) % 4
         tx = (1 - ti) % 2;
         ty = (2 - ti) % 2;
-        if(map[x + tx][y + ty] === " " && map[x + 2*tx][y + 2*ty] === " "){
+        if(map[x + tx][y + ty] === " "){
             //print("I go to ", tx + x, " ", ty + y, " ", map[x + 2*tx][y + 2*ty]);
             flag = true;
             angle = ti; 
@@ -286,23 +389,23 @@ function findRequiredCeil(tag){
                         tx = (1 - i) % 2;
                         ty = (2 - i) % 2;
                         //print(i, " ", tx, ty, " ", mask[row + tx][col + ty], " ", mask[row + 2*tx][col + 2*ty]);
-                        if(mask[row + tx][col + ty] === " " && mask[row + 2*tx][col + 2*ty] === " "){
-                            mask[row + 2*tx][col + 2*ty] = counter + 1;
+                        if(mask[row + tx][col + ty] === " "){
+                            mask[row + tx][col + ty] = counter + 1;
                             lastCounter = counter; 
                         }
                         if(tag == undefined){
-                            if(/*(row + 2*tx) % 4 == 0 && (col + 2*ty) % 4 == 0 &&*/ String(map[row + 2*tx][col + 2*ty]) == ' ' && mask[row + tx][col + ty] === " "){
+                            if(/*(row + 2*tx) % 4 == 0 && (col + 2*ty) % 4 == 0 &&*/ String(map[row + tx][col + ty]) == ' '){
                                 /*print("Near ", map[row + 2*tx][col + 2*ty]);
                                 print("****** it near ", row + 2*tx, " ", col + 2*ty);*/
                                 near_flag = true;
-                                return [row + 2*tx, col + 2*ty];
+                                return [row + tx, col + ty];
                             }
                         } else {
-                            if(row + 2*tx == tag[0] && col + 2*ty == tag[1] && mask[row + tx][col + ty] === " "){
+                            if(row + tx == tag[0] && col + ty == tag[1] && mask[row + tx][col + ty] === " "){
                                 /*print("Near ", map[row + 2*tx][col + 2*ty]);
                                 print("****** it near ", row + 2*tx, " ", col + 2*ty);*/
                                 near_flag = true;
-                                return [row + 2*tx, col + 2*ty];
+                                return [row + tx, col + ty];
                             }
                         }
                        
@@ -331,9 +434,9 @@ function tracing(coords){
             var tx = (1 - ti) % 2;
             var ty = (2 - ti) % 2;
             //print(xi + 2*tx, " ", yi + 2*ty, " ", parseInt(mask[xi + 2*tx][yi + 2*ty]));
-            if(parseInt(mask[xi + 2*tx][yi + 2*ty]) == count-1){
-                xi += 2*tx;
-                yi += 2*ty;
+            if(parseInt(mask[xi + tx][yi + ty]) == count-1){
+                xi += tx;
+                yi += ty;
                 //print("next ", xi, " ", yi);
                 count--;
                 break;
@@ -363,8 +466,8 @@ function goToNearCeil(xi, yi){
         turnToRequiredAngle(angle);
     }
     toNextCeil();
-    x += 2*((1 - nowAngle) % 2);
-    y += 2*((2 - nowAngle) % 2);
+    x += ((1 - nowAngle) % 2);
+    y += ((2 - nowAngle) % 2);
     
     if(absolutX >= 0){
         absolutX +=((1 - nowAngle) % 2);
@@ -414,8 +517,8 @@ function checkWall(){
 }
 
 function researchCeilPosition(){
-    x += 2*((1 - nowAngle) % 2);
-    y += 2*((2 - nowAngle) % 2);
+    x += ((1 - nowAngle) % 2);
+    y += ((2 - nowAngle) % 2);
     researchCeil();
 }
 
@@ -432,7 +535,7 @@ function going(){
             lastCountResearchedCeil = nowCountResearchedCeil;
             //printMap(map);
             //print(map[x +  2*((1 - nowAngle) % 2)][y + 2*((2 - nowAngle) % 2)]);
-            if(map[x +  2*((1 - nowAngle) % 2)][y + 2*((2 - nowAngle) % 2)] != " ") break;
+            if(map[x +  ((1 - nowAngle) % 2)][y + ((2 - nowAngle) % 2)] != " ") break;
         }
     }
     //stop();
@@ -441,7 +544,7 @@ function going(){
     //print(encoderAbsolut);
     
     var needEncoder = encoderAbsolut;
-    print("last enc ", needEncoder, "encAbs " , encoderAbsolut);
+    print("last enc ", needEncoder, " encAbsolut " , encoderAbsolut);
     if(Math.abs(lastCountResearchedCeil*distanceToNextCeil - (rEnc.readRawData() - encoderAbsolut)) > Math.abs((lastCountResearchedCeil + 1)*distanceToNextCeil - (rEnc.readRawData() - encoderAbsolut))){
         needEncoder += (lastCountResearchedCeil + 1)*distanceToNextCeil;
         researchCeilPosition();
@@ -508,7 +611,7 @@ function turnTo(count) {
     
     stop();
     setStartPoint();
-    setMoving(-indent);
+    setMoving(-indent, undefined, true);
     //encReset();
 }
 
@@ -534,6 +637,7 @@ function stop(){
     /*lMotor.brake(100);
     rMotor.brake(100);*/
     lMotor.setPower(0);
+    //rMotor.brake(1);
     rMotor.setPower(0);
 }
 
@@ -547,16 +651,17 @@ function setMotion(lPower, rPower){
     rMotor.setPower(rPower);
 }
 
-function setMoving(distance, setSpeed){
+function setMoving(distance, setSpeed, illusion){
     if (typeof(setSpeed)==='undefined') setSpeed = 50;
     encoderAbsolut += distance;
-    if(distance > 0){
+    if (illusion) return;
+    if (distance > 0){
         while(rEnc.readRawData() <= encoderAbsolut){
             var resultSpeed = setSpeed*moveP * (encoderAbsolut - rEnc.readRawData()) + 10;
             setMotion(resultSpeed, resultSpeed);
             script.wait(0.5);
         }
-    } else if(distance < 0){
+    } else if (distance < 0){
         //print("in");
         while(rEnc.readRawData() >= encoderAbsolut){
             var resultSpeed = setSpeed*moveP * (Math.abs(rEnc.readRawData() - encoderAbsolut)) + 10;
