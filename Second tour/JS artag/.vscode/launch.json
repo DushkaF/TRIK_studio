@@ -12,7 +12,8 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\ttemp.js"
+            "program": "${workspaceFolder}\\temp.js",
+            "console": "integratedTerminal"
         }
     ]
 }
