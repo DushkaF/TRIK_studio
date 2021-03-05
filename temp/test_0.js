@@ -36,7 +36,6 @@ var absolutY = -1;
 
 var main = function() {
     __interpretation_started_timestamp__ = Date.now();
-
     calibrateGyro();
     setStartPoint();
 
@@ -48,7 +47,6 @@ var main = function() {
     */
    
     researchFirstCell();
-    
     while(true){
         researchCell();
         if(!whereNext()) break;
