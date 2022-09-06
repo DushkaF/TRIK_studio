@@ -1,0 +1,18 @@
+Correct output:
+Magadan 4035
+Yakutia 27976
+The United Kingdom of Great Britain and Northern Ireland 369875
+Antarctic coast 387360
+Costa  Rica 387360
+Oregon 387360
+California 774720
+
+
+Your code output:
+Magadan 4035
+Yakutia 27976
+The United Kingdom of Great Britain and Northern Ireland 369875
+Antarctic coast 387360
+Costa Rica 387360
+Oregon 387360
+California 774720
